@@ -5,8 +5,9 @@
 #include <SDL2/SDL2_gfxPrimitives_font.h>
 
 #define STICK_MAX_VAL (float(0x7fff))
-#define WIN_W 1100
-#define WIN_H 800
+
+static const float placement_factor = 6;
+static const float size_factor = 10;
 
 std::string cStringToStdString(const char* str, const std::string& or_="N/A")
 {
@@ -34,11 +35,17 @@ struct StickState
 int main()
 {
     SDL_Init(SDL_INIT_EVERYTHING);
-    SDL_Window* window = SDL_CreateWindow("Gamepad Test", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, WIN_W, WIN_H, 0);
+    SDL_DisplayMode current_mode;
+    if (SDL_GetCurrentDisplayMode(0, &current_mode) == 0) {
+        printf("Width: %d, Height: %d\n", current_mode.w, current_mode.h);
+    } else {
+        printf("Error getting display mode: %s\n", SDL_GetError());
+    }
+    SDL_Window* window = SDL_CreateWindow("Gamepad Test", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, current_mode.w, current_mode.h, 0);
     SDL_Renderer* rend = SDL_CreateRenderer(window, 0, 0);
     gfxPrimitivesSetFont(gfxPrimitivesFontdata, 8, 8);
 
-    SDL_GameControllerAddMappingsFromFile("../gamecontrollerdb.txt");
+    SDL_GameControllerAddMappingsFromFile("/storage/.config/SDL-GameControllerDB/gamecontrollerdb.txt");
 
     SDL_GameController* gcont = nullptr;
     StickState leftStickState{};
@@ -47,6 +54,13 @@ int main()
     uint8_t dpadState = 0;
     float lTriggerState = 0.0f;
     float rTriggerState = 0.0f;
+
+    // Calculate some sizes and offsets
+    int offsetX  = current_mode.w / placement_factor;
+    int offsetY  = current_mode.h / placement_factor;
+    int stickRadiusRange = std::min(current_mode.w, current_mode.h) / size_factor;
+    int stickRadius = stickRadiusRange/2;
+
 
     bool running = true;
     while (true)
@@ -74,23 +88,13 @@ int main()
 
             case SDL_CONTROLLERBUTTONDOWN:
                 std::cout << "Controller button down: " << +event.cbutton.button  << '\n';
-                SDL_GameControllerRumble(gcont, 0, 0xffff/2, 200);
+                //SDL_GameControllerRumble(gcont, 0, 0xffff/2, 200);
                 buttonStates[event.cbutton.button] = true;
                 break;
 
             case SDL_CONTROLLERBUTTONUP:
                 std::cout << "Controller button up: " << +event.cbutton.button  << '\n';
                 buttonStates[event.cbutton.button] = false;
-                break;
-
-            case SDL_JOYBUTTONDOWN:
-                if (event.jbutton.button == 8)
-                    buttonStates[SDL_CONTROLLER_BUTTON_GUIDE] = true;
-                break;
-
-            case SDL_JOYBUTTONUP:
-                if (event.jbutton.button == 8)
-                    buttonStates[SDL_CONTROLLER_BUTTON_GUIDE] = false;
                 break;
 
             case SDL_CONTROLLERAXISMOTION:
@@ -142,93 +146,98 @@ int main()
             stringColor(rend, 10, 10, cStringToStdString(SDL_GameControllerName(gcont), "Unknown").c_str(), 0xffffffff);
 
             // Left analog stick
-            aacircleColor(rend, 300, 300, 60, 0xffffffff);
-            aacircleColor(rend, 300+leftStickState.x*30, 300+leftStickState.y*30, 30, 0xffffffff);
-            filledCircleColor(rend, 300+leftStickState.x*30, 300+leftStickState.y*30, 30,
+            aacircleColor(rend, offsetX, offsetY*3, stickRadiusRange, 0xffffffff);
+            aacircleColor(rend, offsetX+leftStickState.x*stickRadius, offsetY*3+leftStickState.y*stickRadius, stickRadius, 0xffffffff);
+            filledCircleColor(rend, offsetX+leftStickState.x*stickRadius, offsetY*3+leftStickState.y*stickRadius, stickRadius,
                     (buttonStates[SDL_CONTROLLER_BUTTON_LEFTSTICK] ? 0xffffffff : 0));
 
             // Right analog stick
-            aacircleColor(rend, WIN_W-300, WIN_H-300, 60, 0xffffffff);
-            aacircleColor(rend, WIN_W-300+rightStickState.x*30, WIN_H-300+rightStickState.y*30, 30, 0xffffffff);
-            filledCircleColor(rend, WIN_W-300+rightStickState.x*30, WIN_H-300+rightStickState.y*30, 30,
+            aacircleColor(rend, current_mode.w-offsetX*2, current_mode.h-offsetY, stickRadiusRange, 0xffffffff);
+            aacircleColor(rend, current_mode.w-offsetX*2+rightStickState.x*stickRadius, current_mode.h-offsetY+rightStickState.y*stickRadius, stickRadius, 0xffffffff);
+            filledCircleColor(rend, current_mode.w-offsetX*2+rightStickState.x*stickRadius, current_mode.h-offsetY+rightStickState.y*stickRadius, stickRadius,
                     (buttonStates[SDL_CONTROLLER_BUTTON_RIGHTSTICK] ? 0xffffffff : 0));
 
             // Y button
-            aacircleRGBA(rend, WIN_W-300, 300-40, 20, 255, 255, 0, 255);
+            aacircleRGBA(rend, current_mode.w-offsetX, offsetY*3-40, 20, 255, 255, 0, 255);
             if (buttonStates[SDL_CONTROLLER_BUTTON_Y])
-                filledCircleRGBA(rend, WIN_W-300, 300-40, 20, 255, 255, 0, 255);
+                filledCircleRGBA(rend, current_mode.w-offsetX, offsetY*3-40, 20, 255, 255, 0, 255);
 
             // X button
-            aacircleRGBA(rend, WIN_W-300-40, 300+40-40, 20, 100, 100, 255, 255);
+            aacircleRGBA(rend, current_mode.w-offsetX-40, offsetY*3+40-40, 20, 100, 100, 255, 255);
             if (buttonStates[SDL_CONTROLLER_BUTTON_X])
-                filledCircleRGBA(rend, WIN_W-300-40, 300+40-40, 20, 100, 100, 255, 255);
+                filledCircleRGBA(rend, current_mode.w-offsetX-40, offsetY*3+40-40, 20, 100, 100, 255, 255);
 
             // B button
-            aacircleRGBA(rend, WIN_W-300+40, 300+40-40, 20, 255, 0, 0, 255);
+            aacircleRGBA(rend, current_mode.w-offsetX+40, offsetY*3+40-40, 20, 255, 0, 0, 255);
             if (buttonStates[SDL_CONTROLLER_BUTTON_B])
-                filledCircleRGBA(rend, WIN_W-300+40, 300+40-40, 20, 255, 0, 0, 255);
+                filledCircleRGBA(rend, current_mode.w-offsetX+40, offsetY*3+40-40, 20, 255, 0, 0, 255);
 
             // A button
-            aacircleRGBA(rend, WIN_W-300, 300+80-40, 20, 0, 255, 0, 255);
+            aacircleRGBA(rend, current_mode.w-offsetX, offsetY*3+80-40, 20, 0, 255, 0, 255);
             if (buttonStates[SDL_CONTROLLER_BUTTON_A])
-                filledCircleRGBA(rend, WIN_W-300, 300+80-40, 20, 0, 255, 0, 255);
+                filledCircleRGBA(rend, current_mode.w-offsetX, offsetY*3+80-40, 20, 0, 255, 0, 255);
 
             // D-pad up
-            aatrigonRGBA(rend, 300, WIN_H-360, 280, WIN_H-320, 320, WIN_H-320, 255, 255, 255, 255);
-            if (dpadState & SDL_HAT_UP)
-                filledTrigonRGBA(rend, 300, WIN_H-360, 280, WIN_H-320, 320, WIN_H-320, 255, 255, 255, 255);
+            aatrigonRGBA(rend, offsetX*2, current_mode.h-offsetY-60, offsetX*2-20, current_mode.h-offsetY-20, offsetX*2+20, current_mode.h-offsetY-20, 255, 255, 255, 255);
+            if ((dpadState & SDL_HAT_UP) || buttonStates[SDL_CONTROLLER_BUTTON_DPAD_UP])
+                filledTrigonRGBA(rend, offsetX*2, current_mode.h-offsetY-60, offsetX*2-20, current_mode.h-offsetY-20, offsetX*2+20, current_mode.h-offsetY-20, 255, 255, 255, 255);
 
             // D-pad down
-            aatrigonRGBA(rend, 300, WIN_H-240, 280, WIN_H-280, 320, WIN_H-280, 255, 255, 255, 255);
-            if (dpadState & SDL_HAT_DOWN)
-                filledTrigonRGBA(rend, 300, WIN_H-240, 280, WIN_H-280, 320, WIN_H-280, 255, 255, 255, 255);
+            aatrigonRGBA(rend, offsetX*2, current_mode.h-offsetY + 60, offsetX*2-20, current_mode.h-offsetY+20, offsetX*2+20, current_mode.h-offsetY+20, 255, 255, 255, 255);
+            if ((dpadState & SDL_HAT_DOWN) || buttonStates[SDL_CONTROLLER_BUTTON_DPAD_DOWN])
+                filledTrigonRGBA(rend, offsetX*2, current_mode.h-offsetY + 60, offsetX*2-20, current_mode.h-offsetY+20, offsetX*2+20, current_mode.h-offsetY+20, 255, 255, 255, 255);
 
             // D-pad left
-            aatrigonRGBA(rend, 240, WIN_H-300, 280, WIN_H-320, 280, WIN_H-280, 255, 255, 255, 255);
-            if (dpadState & SDL_HAT_LEFT)
-                filledTrigonRGBA(rend, 240, WIN_H-300, 280, WIN_H-320, 280, WIN_H-280, 255, 255, 255, 255);
+            aatrigonRGBA(rend, offsetX*2-60, current_mode.h-offsetY, offsetX*2-20, current_mode.h-offsetY-20, offsetX*2-20, current_mode.h-offsetY+20, 255, 255, 255, 255);
+            if ((dpadState & SDL_HAT_LEFT) || buttonStates[SDL_CONTROLLER_BUTTON_DPAD_LEFT])
+                filledTrigonRGBA(rend, offsetX*2-60, current_mode.h-offsetY, offsetX*2-20, current_mode.h-offsetY-20, offsetX*2-20, current_mode.h-offsetY+20, 255, 255, 255, 255);
 
             // D-pad right
-            aatrigonRGBA(rend, 360, WIN_H-300, 320, WIN_H-320, 320, WIN_H-280, 255, 255, 255, 255);
-            if (dpadState & SDL_HAT_RIGHT)
-                filledTrigonRGBA(rend, 360, WIN_H-300, 320, WIN_H-320, 320, WIN_H-280, 255, 255, 255, 255);
+            aatrigonRGBA(rend, offsetX*2+60, current_mode.h-offsetY, offsetX*2+20, current_mode.h-offsetY-20, offsetX*2+20, current_mode.h-offsetY+20, 255, 255, 255, 255);
+            if ((dpadState & SDL_HAT_RIGHT) || buttonStates[SDL_CONTROLLER_BUTTON_DPAD_RIGHT])
+                filledTrigonRGBA(rend, offsetX*2+60, current_mode.h-offsetY, offsetX*2+20, current_mode.h-offsetY-20, offsetX*2+20, current_mode.h-offsetY+20, 255, 255, 255, 255);
 
             // Left bumper
-            rectangleColor(rend, 300-50, 300-150-20, 300+50, 300-150+20, 0xffffffff);
+            rectangleColor(rend, offsetX, offsetY-20, offsetX+100, offsetY+20, 0xffffffff);
             if (buttonStates[SDL_CONTROLLER_BUTTON_LEFTSHOULDER])
-                boxColor(rend, 300-50, 300-150-20, 300+50, 300-150+20, 0xffffffff);
+                boxColor(rend, offsetX, offsetY-20, offsetX+100, offsetY+20, 0xffffffff);
 
             // Right bumper
-            rectangleColor(rend, WIN_W-300-50, 300-150-20, WIN_W-300+50, 300-150+20, 0xffffffff);
+            rectangleColor(rend, current_mode.w-offsetX, offsetY-20, current_mode.w-offsetX-100, offsetY+20, 0xffffffff);
             if (buttonStates[SDL_CONTROLLER_BUTTON_RIGHTSHOULDER])
-                boxColor(rend, WIN_W-300-50, 300-150-20, WIN_W-300+50, 300-150+20, 0xffffffff);
+                boxColor(rend, current_mode.w-offsetX, offsetY-20, current_mode.w-offsetX-100, offsetY+20, 0xffffffff);
 
             // Left trigger
-            rectangleColor(rend, 300-50-80, 300-150-20, 300-50-80+40, 300-150+20+80, 0xffffffff);
-            boxColor(rend, 300-50-80, 130, 300-50-80+40, 130+120*lTriggerState, 0xffffffff);
+            rectangleColor(rend, offsetX/2, offsetY-20, offsetX/2+40, offsetY+20+80, 0xffffffff);
+            boxColor(rend, offsetX/2, offsetY-20, offsetX/2+40, offsetY-20+120*lTriggerState, 0xffffffff);
 
             // Right trigger
-            rectangleColor(rend, WIN_W-300+50+40, 300-150-20, WIN_W-300+50+80, 300-150+20+80, 0xffffffff);
-            boxColor(rend, WIN_W-300+50+40, 130, WIN_W-300+50+80, 130+120*rTriggerState, 0xffffffff);
+            rectangleColor(rend, current_mode.w-offsetX/2, offsetY-20, current_mode.w-offsetX/2-40, offsetY+20+80, 0xffffffff);
+            boxColor(rend, current_mode.w-offsetX/2, offsetY-20, current_mode.w-offsetX/2- 40, offsetY-20+120*rTriggerState, 0xffffffff);
 
             // Back button
-            aacircleColor(rend, WIN_W/2-40, WIN_H/2, 20, 0xffffffff);
+            aacircleColor(rend, current_mode.w/2-40, current_mode.h/2, 20, 0xffffffff);
             if (buttonStates[SDL_CONTROLLER_BUTTON_BACK])
-                filledCircleColor(rend, WIN_W/2-40, WIN_H/2, 20, 0xffffffff);
+                filledCircleColor(rend, current_mode.w/2-40, current_mode.h/2, 20, 0xffffffff);
 
             // Start button
-            aacircleColor(rend, WIN_W/2+40, WIN_H/2, 20, 0xffffffff);
+            aacircleColor(rend, current_mode.w/2+40, current_mode.h/2, 20, 0xffffffff);
             if (buttonStates[SDL_CONTROLLER_BUTTON_START])
-                filledCircleColor(rend, WIN_W/2+40, WIN_H/2, 20, 0xffffffff);
+                filledCircleColor(rend, current_mode.w/2+40, current_mode.h/2, 20, 0xffffffff);
+
+            // Misc1 button (Share)
+            aacircleColor(rend, current_mode.w/2, current_mode.h/2 + 50, 18, 0xffffffff);
+            if (buttonStates[SDL_CONTROLLER_BUTTON_MISC1])
+                filledCircleColor(rend, current_mode.w/2, current_mode.h/2 + 50, 18, 0xffffffff);
 
             // Guide button
-            aacircleColor(rend, WIN_W/2, WIN_H/2-60, 30, 0xffffffff);
+            aacircleColor(rend, current_mode.w/2, current_mode.h/2-60, 30, 0xffffffff);
             if (buttonStates[SDL_CONTROLLER_BUTTON_GUIDE])
-                filledCircleColor(rend, WIN_W/2, WIN_H/2-60, 30, 0xffffffff);
+                filledCircleColor(rend, current_mode.w/2, current_mode.h/2-60, 30, 0xffffffff);
         }
         else
         {
-            stringColor(rend, WIN_W/2-22*8/2, WIN_H/2-8/2, "NO CONTROLLER DETECTED", 0xffffffff);
+            stringColor(rend, current_mode.w/2-22*8/2, current_mode.h/2-8/2, "NO CONTROLLER DETECTED", 0xffffffff);
         }
 
         SDL_RenderPresent(rend);
