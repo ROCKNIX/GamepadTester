@@ -130,6 +130,22 @@ int main()
                 dpadState = event.jhat.value;
                 break;
 
+            case SDL_KEYDOWN:
+                if (event.key.keysym.sym == SDLK_F1 && !event.key.repeat)
+                {
+                    std::cout << "F1 down (Misc1)\n";
+                    buttonStates[SDL_CONTROLLER_BUTTON_MISC1] = true;
+                }
+                break;
+
+            case SDL_KEYUP:
+                if (event.key.keysym.sym == SDLK_F1)
+                {
+                    std::cout << "F1 up (Misc1)\n";
+                    buttonStates[SDL_CONTROLLER_BUTTON_MISC1] = false;
+                }
+                break;
+
             default:
                 std::cout << "Event: 0x" << std::hex << event.type << std::dec << std::endl;
                 break;
