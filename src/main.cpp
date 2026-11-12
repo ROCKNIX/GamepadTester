@@ -51,6 +51,8 @@ int main()
     StickState leftStickState{};
     StickState rightStickState{};
     bool buttonStates[SDL_CONTROLLER_BUTTON_MAX]{};
+    bool f2State = false;
+    bool f3State = false;
     uint8_t dpadState = 0;
     float lTriggerState = 0.0f;
     float rTriggerState = 0.0f;
@@ -60,6 +62,7 @@ int main()
     int offsetY  = current_mode.h / placement_factor;
     int stickRadiusRange = std::min(current_mode.w, current_mode.h) / size_factor;
     int stickRadius = stickRadiusRange/2;
+    int extraGap = offsetX/2 - 40;
 
 
     bool running = true;
@@ -131,10 +134,23 @@ int main()
                 break;
 
             case SDL_KEYDOWN:
-                if (event.key.keysym.sym == SDLK_F1 && !event.key.repeat)
+                if (!event.key.repeat)
                 {
-                    std::cout << "F1 down (Misc1)\n";
-                    buttonStates[SDL_CONTROLLER_BUTTON_MISC1] = true;
+                    if (event.key.keysym.sym == SDLK_F1)
+                    {
+                        std::cout << "F1 down (Misc1)\n";
+                        buttonStates[SDL_CONTROLLER_BUTTON_MISC1] = true;
+                    }
+                    else if (event.key.keysym.sym == SDLK_F2)
+                    {
+                        std::cout << "F2 down (Extra left)\n";
+                        f2State = true;
+                    }
+                    else if (event.key.keysym.sym == SDLK_F3)
+                    {
+                        std::cout << "F3 down (Extra right)\n";
+                        f3State = true;
+                    }
                 }
                 break;
 
@@ -143,6 +159,16 @@ int main()
                 {
                     std::cout << "F1 up (Misc1)\n";
                     buttonStates[SDL_CONTROLLER_BUTTON_MISC1] = false;
+                }
+                else if (event.key.keysym.sym == SDLK_F2)
+                {
+                    std::cout << "F2 up (Extra left)\n";
+                    f2State = false;
+                }
+                else if (event.key.keysym.sym == SDLK_F3)
+                {
+                    std::cout << "F3 up (Extra right)\n";
+                    f3State = false;
                 }
                 break;
 
@@ -222,6 +248,16 @@ int main()
             rectangleColor(rend, current_mode.w-offsetX, offsetY-20, current_mode.w-offsetX-100, offsetY+20, 0xffffffff);
             if (buttonStates[SDL_CONTROLLER_BUTTON_RIGHTSHOULDER])
                 boxColor(rend, current_mode.w-offsetX, offsetY-20, current_mode.w-offsetX-100, offsetY+20, 0xffffffff);
+
+            // M1 Button
+            rectangleColor(rend, offsetX+100+extraGap, offsetY-20, offsetX+100+extraGap+50, offsetY+20, 0xffffffff);
+            if (f2State)
+                boxColor(rend, offsetX+100+extraGap, offsetY-20, offsetX+100+extraGap+50, offsetY+20, 0xffffffff);
+
+            // M2 Button
+            rectangleColor(rend, current_mode.w-offsetX-100-extraGap, offsetY-20, current_mode.w-offsetX-100-extraGap-50, offsetY+20, 0xffffffff);
+            if (f3State)
+              boxColor(rend, current_mode.w-offsetX-100-extraGap, offsetY-20, current_mode.w-offsetX-100-extraGap-50, offsetY+20, 0xffffffff);
 
             // Left trigger
             rectangleColor(rend, offsetX/2, offsetY-20, offsetX/2+40, offsetY+20+80, 0xffffffff);
